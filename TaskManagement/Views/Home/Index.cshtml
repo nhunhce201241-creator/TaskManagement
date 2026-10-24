@@ -1,0 +1,596 @@
+﻿@model dynamic
+@{
+    Layout = null;
+    var listProjects = ViewBag.ListProjects as List<TaskManagement.Models.Project>;
+    var listTasks = ViewBag.ListTasks as List<TaskManagement.Models.TaskItem>;
+    int? selectedProjectId = ViewBag.SelectedProjectId as int?;
+
+    int totalTasks = listTasks != null ? listTasks.Count : 0;
+    long completedTasks = listTasks != null ? listTasks.Count(t => t.Status == "Completed") : 0;
+    int percent = totalTasks > 0 ? (int)((completedTasks * 100) / totalTasks) : 0;
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PinkMelo Workspace</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+            * {
+                box-sizing: border-box;
+            }
+
+            body {
+                background-color: #fdf6f9;
+                font-family: 'Plus Jakarta Sans', sans-serif;
+                color: #4a4049;
+                min-height: 100vh;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                margin: 0;
+                padding: 20px;
+                overflow-x: hidden;
+                position: relative;
+            }
+
+            /* BACKGROUND CANVAS NHẸ NHÀNG */
+            #pastelCanvas {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                z-index: 0;
+                pointer-events: none;
+            }
+
+            /* KHUNG CHÍNH PASTEL */
+            .binder-container {
+                width: 100%;
+                max-width: 1400px;
+                min-height: 88vh;
+                background: rgba(255, 255, 255, 0.85);
+                backdrop-filter: blur(20px);
+                -webkit-backdrop-filter: blur(20px);
+                border-radius: 24px;
+                padding: 24px;
+                box-shadow: 0 10px 40px rgba(244, 194, 204, 0.25);
+                position: relative;
+                z-index: 10;
+                border: 1px solid rgba(245, 208, 218, 0.6);
+                perspective: 2000px;
+                display: flex;
+                flex-direction: column;
+            }
+
+            /* BÌA CỬA SỞ HỮU HIỆU ỨNG 3D */
+            .leather-cover {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: linear-gradient(135deg, #fbe8ed 0%, #f4d6e2 100%);
+                border-radius: 24px;
+                z-index: 100;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                box-shadow: 0 15px 35px rgba(235, 175, 190, 0.3);
+                transform-origin: left center;
+                transition: transform 1.2s cubic-bezier(0.645, 0.045, 0.355, 1), opacity 0.8s ease, visibility 1.2s ease;
+                cursor: pointer;
+                border: 1px solid rgba(245, 208, 218, 0.8);
+            }
+
+            .binder-container.opened .leather-cover {
+                transform: rotateY(-110deg);
+                opacity: 0;
+                visibility: hidden;
+                pointer-events: none;
+            }
+
+            .cover-content {
+                text-align: center;
+                color: #5c4b51;
+                padding: 40px 20px;
+                border: 1px solid rgba(255, 255, 255, 0.8);
+                border-radius: 20px;
+                background: rgba(255, 255, 255, 0.7);
+                max-width: 550px;
+                width: 90%;
+                box-shadow: 0 10px 30px rgba(235, 175, 190, 0.2);
+            }
+
+            .cover-title {
+                font-size: clamp(1.8rem, 4vw, 2.8rem);
+                font-weight: 700;
+                letter-spacing: 0.5px;
+                margin-bottom: 10px;
+                color: #d46a84;
+            }
+
+            .open-btn {
+                background: #d46a84;
+                color: #ffffff;
+                border: none;
+                padding: 12px 32px;
+                font-size: 1rem;
+                font-weight: 600;
+                border-radius: 30px;
+                box-shadow: 0 6px 20px rgba(212, 106, 132, 0.35);
+                transition: all 0.3s ease;
+            }
+
+                .open-btn:hover {
+                    background: #c25571;
+                    transform: translateY(-2px);
+                    box-shadow: 0 8px 25px rgba(212, 106, 132, 0.5);
+                }
+
+            /* BENTO GRID LAYOUT */
+            .dashboard-layout {
+                display: grid;
+                grid-template-columns: 80px 1fr 340px;
+                grid-template-rows: 70px auto 1fr;
+                gap: 18px;
+                flex-grow: 1;
+            }
+
+            /* BENTO CARD PASTEL */
+            .bento-card {
+                background: #ffffff;
+                border-radius: 20px;
+                padding: 20px;
+                box-shadow: 0 4px 20px rgba(235, 205, 215, 0.15);
+                border: 1px solid #f5e1e8;
+                transition: all 0.3s ease;
+                position: relative;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+            }
+
+            /* SIDEBAR HUD */
+            .sidebar-col {
+                grid-column: 1;
+                grid-row: 1 / span 3;
+                background: #fff5f7;
+                border-radius: 20px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                padding: 20px 0;
+                border: 1px solid #f5e1e8;
+            }
+
+            .sidebar-icon {
+                width: 42px;
+                height: 42px;
+                border-radius: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #a8949b;
+                font-size: 1.1rem;
+                margin-bottom: 12px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+
+                .sidebar-icon:hover, .sidebar-icon.active {
+                    background: #fce8ee;
+                    color: #d46a84;
+                }
+
+            /* HEADER */
+            .header-col {
+                grid-column: 2 / span 2;
+                grid-row: 1;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 0 20px;
+            }
+
+            /* TASKS */
+            .tasks-col {
+                grid-column: 2;
+                grid-row: 2 / span 2;
+                background: #ffffff;
+            }
+
+            .right-sidebar {
+                grid-column: 3;
+                grid-row: 2 / span 2;
+                display: flex;
+                flex-direction: column;
+                gap: 18px;
+            }
+
+            /* PROJECT BADGES */
+            .project-badge {
+                display: inline-block;
+                background: #fdf2f5;
+                padding: 6px 14px;
+                border-radius: 16px;
+                margin-right: 6px;
+                margin-bottom: 6px;
+                color: #d46a84;
+                text-decoration: none;
+                font-weight: 600;
+                font-size: 0.85rem;
+                border: 1px solid #f5d3dd;
+                transition: all 0.2s ease;
+            }
+
+                .project-badge:hover, .project-badge.active {
+                    background: #d46a84;
+                    color: #ffffff;
+                    border-color: #d46a84;
+                    box-shadow: 0 4px 12px rgba(212, 106, 132, 0.3);
+                }
+
+            /* FORM CONTROLS */
+            .form-control, .form-select {
+                background: #fcf9fa !important;
+                border: 1px solid #ebd5dc !important;
+                color: #5c4b51 !important;
+                border-radius: 12px !important;
+            }
+
+                .form-control::placeholder {
+                    color: #b8a6ad;
+                    opacity: 1;
+                }
+
+                .form-control:focus, .form-select:focus {
+                    box-shadow: 0 0 0 3px rgba(212, 106, 132, 0.15) !important;
+                    border-color: #d46a84 !important;
+                }
+
+            .btn-pastel-pink {
+                background: #d46a84 !important;
+                color: #ffffff !important;
+                font-weight: 600;
+                border-radius: 12px !important;
+                box-shadow: 0 4px 15px rgba(212, 106, 132, 0.25);
+                transition: all 0.2s ease;
+            }
+
+                .btn-pastel-pink:hover {
+                    background: #c25571 !important;
+                    transform: translateY(-1px);
+                    box-shadow: 0 6px 18px rgba(212, 106, 132, 0.35);
+                }
+
+            ::-webkit-scrollbar {
+                width: 4px;
+            }
+
+            ::-webkit-scrollbar-thumb {
+                background: #ebd5dc;
+                border-radius: 10px;
+            }
+
+            /* MOBILE RESPONSIVE */
+            @@media (max-width: 992px) {
+                body {
+                    padding: 10px;
+                }
+
+                .binder-container {
+                    padding: 15px;
+                    min-height: auto;
+                }
+
+                .dashboard-layout {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 15px;
+                }
+
+                .sidebar-col {
+                    flex-direction: row;
+                    justify-content: center;
+                    width: 100%;
+                    grid-row: auto;
+                    padding: 10px 0;
+                    gap: 15px;
+                }
+
+                .sidebar-icon {
+                    margin-bottom: 0;
+                    width: 38px;
+                    height: 38px;
+                }
+
+                .header-col {
+                    flex-direction: column;
+                    gap: 8px;
+                    text-align: center;
+                    padding: 10px;
+                }
+
+                .tasks-col {
+                    order: 1;
+                    min-height: 400px;
+                }
+
+                .right-sidebar {
+                    order: 2;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 15px;
+                }
+            }
+    </style>
+</head>
+<body>
+
+    <!-- CANVAS NỀN HIỆU ỨNG NHẸ NHÀNG -->
+    <canvas id="pastelCanvas"></canvas>
+
+    <div class="binder-container" id="binder">
+        <!-- BÌA CỬA SỔ -->
+        <div class="leather-cover" onclick="openNotebook()">
+            <div class="cover-content">
+                <i class="fas fa-seedling fa-3x mb-3" style="color: #d46a84;"></i>
+                <div class="cover-title">FOCUSMATE .NET 8</div>
+                <p class="text-muted mb-3 small">Gentle Pastel Pink Workspace</p>
+
+                <div class="my-3 p-3 rounded-4" style="background: rgba(255, 255, 255, 0.6); border: 1px dashed #ebd5dc;">
+                    <p class="fst-italic mb-1 small text-secondary">"@ViewBag.DailyQuote"</p>
+                    <small class="fw-bold" style="color: #d46a84;">— @ViewBag.DailyAuthor —</small>
+                </div>
+
+                <button class="open-btn mt-2" onclick="openNotebook(event)">
+                    <i class="fas fa-heart me-2"></i>BẮT ĐẦU NGAY
+                </button>
+            </div>
+        </div>
+
+        <!-- BENTO GRID SYSTEM -->
+        <div class="dashboard-layout">
+            <!-- SIDEBAR -->
+            <div class="sidebar-col">
+                <div class="sidebar-icon active"><i class="fas fa-home"></i></div>
+                <div class="sidebar-icon"><i class="fas fa-folder"></i></div>
+                <div class="sidebar-icon"><i class="fas fa-chart-pie"></i></div>
+                <div class="sidebar-icon"><i class="fas fa-cog"></i></div>
+            </div>
+
+            <!-- HEADER -->
+            <div class="bento-card header-col py-2">
+                <h5 class="fw-bold m-0" style="color: #5c4b51; font-size: 1rem;"><i class="fas fa-star me-2" style="color: #d46a84;"></i>WORKSPACE DASHBOARD</h5>
+                <div class="d-flex align-items-center gap-2 px-3 py-1 rounded-pill" style="background: #fdf2f5; border: 1px solid #ebd5dc;">
+                    <i class="fas fa-user-circle fs-6" style="color: #d46a84;"></i>
+                    <span class="fw-bold small" style="color: #5c4b51;">Nguyen Hong Nhu</span>
+                </div>
+            </div>
+
+            <!-- CỘT CHÍNH: KHUNG TASK -->
+            <div class="bento-card tasks-col">
+                <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2" style="border-color: #f5e1e8 !important;">
+                    <h5 class="fw-bold m-0" style="color: #5c4b51; font-size: 0.95rem;"><i class="fas fa-tasks me-2" style="color: #d46a84;"></i>DANH SÁCH NHIỆM VỤ</h5>
+                    <span class="badge px-2.5 py-1 rounded-pill fw-bold" style="background: #fdf2f5; color: #d46a84; border: 1px solid #ebd5dc; font-size: 0.75rem;">@totalTasks Mục tiêu</span>
+                </div>
+
+                <!-- Danh sách Task -->
+                <div class="d-flex flex-column gap-2 overflow-auto my-2 flex-grow-1" style="max-height: 330px; padding-right: 5px;">
+                    @if (listTasks != null && listTasks.Any())
+                    {
+                        foreach (var t in listTasks)
+                        {
+                            <div class="d-flex align-items-center justify-content-between p-2.5 rounded-3 shadow-sm" style="background: #fcf9fa; border: 1px solid #f5e1e8;">
+                                <div class="d-flex align-items-center gap-2 flex-grow-1">
+                                    <form asp-action="ToggleStatus" asp-route-id="@t.TaskId" method="post" class="m-0">
+                                        <button type="submit" class="btn btn-sm p-0" title="Đổi trạng thái">
+                                            <i class="fa-@(t.Status == "Completed" ? "circle-check" : "circle") fs-5" style="color: @(t.Status == "Completed" ? "#d46a84" : "#b8a6ad");"></i>
+                                        </button>
+                                    </form>
+
+                                    <span id="task-title-@t.TaskId" class="fw-bold small @(t.Status == "Completed" ? "text-decoration-line-through text-muted" : "")" style="color: #5c4b51;">@t.Title</span>
+
+                                    <!-- Form Edit -->
+                                    <form asp-action="EditTask" method="post" id="edit-form-@t.TaskId" class="d-none align-items-center gap-1 flex-grow-1 m-0">
+                                        <input type="hidden" name="id" value="@t.TaskId" />
+                                        <input type="text" name="title" value="@t.Title" class="form-control form-control-sm rounded-pill px-2" required />
+                                        <select name="priority" class="form-select form-select-sm rounded-pill" style="width: 75px; font-size: 0.75rem;">
+                                            <option value="High" selected="@(t.Priority == "High")">High</option>
+                                            <option value="Medium" selected="@(t.Priority == "Medium")">Med</option>
+                                            <option value="Low" selected="@(t.Priority == "Low")">Low</option>
+                                        </select>
+                                        <button type="submit" class="btn btn-sm btn-pastel-pink rounded-circle p-1"><i class="fas fa-check"></i></button>
+                                        <button type="button" class="btn btn-sm btn-light rounded-circle p-1 border" onclick="toggleEdit(@t.TaskId)"><i class="fas fa-times"></i></button>
+                                    </form>
+                                </div>
+
+                                <div class="d-flex align-items-center gap-2">
+                                    <span id="task-badge-@t.TaskId" class="badge px-2 py-1 rounded-pill" style="font-size: 0.7rem; background: #fdf2f5; color: #d46a84; border: 1px solid #ebd5dc;">@t.Priority</span>
+
+                                    <button type="button" class="btn btn-sm p-1" style="color: #d46a84;" title="Sửa" onclick="toggleEdit(@t.TaskId)">
+                                        <i class="fas fa-pen small"></i>
+                                    </button>
+
+                                    <form asp-action="DeleteTask" asp-route-id="@t.TaskId" method="post" class="m-0" onsubmit="return confirm('Xóa nhiệm vụ này?');">
+                                        <button type="submit" class="btn btn-sm p-1 text-secondary" title="Xóa">
+                                            <i class="fas fa-trash-alt small"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <p class="text-muted text-center fst-italic my-4 small">Chưa có nhiệm vụ nào. Thêm mới ở bên dưới nhé!</p>
+                    }
+                </div>
+
+                <!-- Form Thêm Task Nhanh -->
+                <form asp-action="AddTask" method="post" class="mt-auto pt-3 border-top" id="addTaskForm" onsubmit="showLoading(this)" style="border-color: #f5e1e8 !important;">
+                    <input type="hidden" name="projectId" value="@(selectedProjectId ?? (listProjects?.FirstOrDefault()?.ProjectId ?? 1))" />
+                    <div class="input-group mb-2">
+                        <input type="text" name="title" class="form-control rounded-start-pill px-3 small" placeholder="Thêm nhiệm vụ mới..." required autocomplete="off">
+                        <select name="priority" class="form-select rounded-end-pill" style="max-width: 90px; font-size: 0.8rem;">
+                            <option value="High">High</option>
+                            <option value="Medium" selected>Medium</option>
+                            <option value="Low">Low</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-pastel-pink w-100 rounded-pill py-2 small fw-bold">
+                        <i class="fas fa-plus me-1"></i>THÊM NHIỆM VỤ
+                    </button>
+                </form>
+
+                <!-- Dự án -->
+                <div class="mt-3 border-top pt-2" style="border-color: #f5e1e8 !important;">
+                    <h6 class="fw-bold mb-2 small text-secondary"><i class="fas fa-folder-open me-1" style="color: #d46a84;"></i>DỰ ÁN:</h6>
+                    <div>
+                        @if (listProjects != null && listProjects.Any())
+                        {
+                            foreach (var p in listProjects)
+                            {
+                                bool isActive = selectedProjectId.HasValue && selectedProjectId.Value == p.ProjectId;
+                                <a href="/Home/Index?projectId=@p.ProjectId" class="project-badge @(isActive ? "active" : "")">@p.ProjectName</a>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- CỘT BÊN PHẢI -->
+            <div class="right-sidebar">
+                <!-- WELCOME CARD -->
+                <div class="bento-card py-3" style="background: #fdf2f5; border: 1px solid #ebd5dc;">
+                    <div class="d-flex align-items-center gap-3">
+                        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80" style="width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 2px solid #d46a84;">
+                        <div>
+                            <h6 class="fw-bold mb-1" style="color: #5c4b51; font-size: 0.9rem;">Chào Như! ✨</h6>
+                            <p class="text-muted small mb-0" style="font-size: 0.75rem;">Hôm nay thật tuyệt vời!</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STATS CARD -->
+                <div class="bento-card text-center justify-content-center py-3">
+                    <span class="text-muted fw-bold text-uppercase" style="font-size: 0.7rem;">TIẾN ĐỘ HOÀN THÀNH</span>
+                    <h3 class="fw-bold my-1" style="color: #d46a84;">@percent%</h3>
+                    <p class="text-muted small mb-0" style="font-size: 0.75rem;">Đã xong <strong style="color: #d46a84;">@completedTasks</strong> / <strong>@totalTasks</strong> mục tiêu</p>
+                </div>
+
+                <!-- POMODORO TIMER -->
+                <div class="bento-card text-center justify-content-center py-3" style="background: #fff5f7; border: 1px solid #ebd5dc;">
+                    <span class="text-muted fw-bold text-uppercase" style="font-size: 0.7rem;"><i class="fas fa-clock me-1" style="color: #d46a84;"></i>POMODORO FOCUS</span>
+                    <h3 class="fw-bold font-monospace my-2" id="timerDisplay" style="color: #5c4b51; font-size: 1.8rem;">25:00</h3>
+                    <button class="btn btn-pastel-pink rounded-pill py-1.5 px-4 shadow-sm small fw-bold" onclick="startTimer()">BẮT ĐẦU</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+            // Hạt nền Pastel nhẹ nhàng
+            const canvas = document.getElementById('pastelCanvas');
+            const ctx = canvas.getContext('2d');
+            let particles = [];
+
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                initParticles();
+            }
+
+            function initParticles() {
+                particles = [];
+                for (let i = 0; i < 50; i++) {
+                    particles.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        radius: Math.random() * 3 + 1,
+                        color: Math.random() > 0.5 ? '#f4c2cc' : '#fce8ee',
+                        speedY: Math.random() * -0.3 - 0.1,
+                        speedX: Math.random() * 0.2 - 0.1
+                    });
+                }
+            }
+
+            function drawParticles() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                particles.forEach(p => {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = p.color;
+                    ctx.fill();
+
+                    p.y += p.speedY;
+                    p.x += p.speedX;
+                    if (p.y < 0) p.y = canvas.height;
+                    if (p.x < 0) p.x = canvas.width;
+                    if (p.x > canvas.width) p.x = 0;
+                });
+                requestAnimationFrame(drawParticles);
+            }
+
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
+            drawParticles();
+
+            window.addEventListener('DOMContentLoaded', (event) => {
+                if (sessionStorage.getItem('notebookOpened') === 'true') {
+                    document.getElementById('binder').classList.add('opened');
+                }
+            });
+
+            function openNotebook(event) {
+                if (event) event.stopPropagation();
+                document.getElementById('binder').classList.add('opened');
+                sessionStorage.setItem('notebookOpened', 'true');
+            }
+
+            function toggleEdit(taskId) {
+                const titleSpan = document.getElementById(`task-title-${taskId}`);
+                const badgeSpan = document.getElementById(`task-badge-${taskId}`);
+                const editForm = document.getElementById(`edit-form-${taskId}`);
+
+                if (editForm.classList.contains('d-none')) {
+                    editForm.classList.remove('d-none');
+                    editForm.classList.add('d-flex');
+                    titleSpan.classList.add('d-none');
+                    badgeSpan.classList.add('d-none');
+                } else {
+                    editForm.classList.add('d-none');
+                    editForm.classList.remove('d-flex');
+                    titleSpan.classList.remove('d-none');
+                    badgeSpan.classList.remove('d-none');
+                }
+            }
+
+            function showLoading(form) {
+                const btn = form.querySelector('button[type="submit"]');
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Đang lưu...';
+            }
+
+            let timerInterval;
+            function startTimer() {
+                let timeLeft = 1500;
+                clearInterval(timerInterval);
+                timerInterval = setInterval(() => {
+                    let minutes = Math.floor(timeLeft / 60);
+                    let seconds = timeLeft % 60;
+                    document.getElementById('timerDisplay').textContent =
+                        String(minutes).padStart(2, '0') + ":" + String(seconds).padStart(2, '0');
+                    if (timeLeft > 0) timeLeft--;
+                    else clearInterval(timerInterval);
+                }, 1000);
+            }
+    </script>
+</body>
+</html>

@@ -1,0 +1,86 @@
+﻿@model List<TaskManagement.Models.Project>
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Dự án - FocusMate .NET 8</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #fdf6f9;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            color: #4a4049;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+        .container-box {
+            width: 100%;
+            max-width: 1200px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 24px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(244, 194, 204, 0.25);
+            border: 1px solid rgba(245, 208, 218, 0.6);
+        }
+        .btn-pastel-pink {
+            background: #d46a84 !important;
+            color: #ffffff !important;
+            font-weight: 600;
+            border-radius: 12px !important;
+        }
+        .btn-pastel-pink:hover {
+            background: #c25571 !important;
+        }
+        .back-btn {
+            color: #d46a84;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .back-btn:hover {
+            color: #c25571;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-box">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <a href="@Url.Action("Index", "Home")" class="back-btn mb-2 d-inline-block"><i class="fas fa-arrow-left me-1"></i> Quay lại Dashboard</a>
+                <h3 class="fw-bold m-0" style="color: #5c4b51;"><i class="fas fa-folder-open me-2" style="color: #d46a84;"></i>Quản Lý Dự Án / Sectors</h3>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            @if (Model != null && Model.Any())
+            {
+                foreach (var p in Model)
+                {
+                    <div class="col-md-4">
+                        <div class="p-4 rounded-4 shadow-sm" style="background: #fcf9fa; border: 1px solid #f5e1e8;">
+                            <h5 class="fw-bold" style="color: #d46a84;">@p.ProjectName</h5>
+                            <p class="text-muted small">Mã dự án: #@p.ProjectId</p>
+                            <a href="@Url.Action("Index", "Home", new { projectId = p.ProjectId })" class="btn btn-sm btn-pastel-pink w-100 mt-2">
+                                <i class="fas fa-arrow-right me-1"></i>Truy cập không gian
+                            </a>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <p class="text-muted text-center fst-italic">Chưa có dự án nào được khởi tạo.</p>
+            }
+        </div>
+    </div>
+</body>
+</html>
